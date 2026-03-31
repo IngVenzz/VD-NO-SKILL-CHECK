@@ -1,116 +1,23 @@
-local player = game:GetService("Players").LocalPlayer
-local userInputService = game:GetService("UserInputService")
-local runService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
-local isActive = true
-local crosshair = nil
-local screenGui = nil
+local crosshairGui = Instance.new("ScreenGui")
+crosshairGui.Name = "CustomCrosshair"
+crosshairGui.ResetOnSpawn = false
+crosshairGui.IgnoreGuiInset = true
+crosshairGui.Parent = playerGui
 
+local dot = Instance.new("Frame")
+dot.Name = "Dot"
+dot.Size = UDim2.new(0, 5, 0, 5)
+dot.Position = UDim2.new(0.5, 0, 0.5, 0)
+dot.AnchorPoint = Vector2.new(0.5, 0.5)
+dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+dot.BorderSizePixel = 0
+dot.ZIndex = 100
+dot.Parent = crosshairGui
 
-local function createCrosshair()
-    if screenGui then screenGui:Destroy() end
-    
-    screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "CrosshairGui"
-    screenGui.IgnoreGuiInset = true
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = player:WaitForChild("PlayerGui")
-    
-    local dot = Instance.new("Frame")
-    dot.Name = "CrosshairDot"
-    dot.Size = UDim2.new(0, 5, 0, 5)
-    dot.Position = UDim2.new(0.5, -4, 0.5, -4)
-    dot.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    dot.BackgroundTransparency = 0
-    dot.BorderSizePixel = 0
-    dot.Parent = screenGui
-    
-    local uiCornerDot = Instance.new("UICorner")
-    uiCornerDot.CornerRadius = UDim.new(1, 0)
-    uiCornerDot.Parent = dot
-    
-    local uiCornerRing = Instance.new("UICorner")
-    uiCornerRing.CornerRadius = UDim.new(1, 0)
-    uiCornerRing.Parent = outerRing
-    
-    crosshair = dot
-    return screenGui
-end
-
-
-local function removeCrosshair()
-    if screenGui then
-        pcall(function() screenGui:Destroy() end)
-        screenGui = nil
-        crosshair = nil
-    end
-end
-
-
-local function reloadCrosshair()
-    if not isActive then return end
-    removeCrosshair()
-    createCrosshair()
-end
-
-
-local function setupCutsceneDetection()
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if not playerGui then return end
-    
-    playerGui.DescendantAdded:Connect(function(descendant)
-        local nameLower = descendant.Name:lower()
-        
-        if nameLower:find("cutscene") or 
-           nameLower:find("cinematic") or 
-           nameLower:find("transition") or
-           nameLower:find("loading") or
-           nameLower:find("black") or
-           nameLower:find("fade") then
-            
-            if screenGui then
-                screenGui.Enabled = false
-            end
-            
-            local waitTime = 0
-            while waitTime < 5 do
-                local stillExists = descendant.Parent ~= nil
-                if not stillExists then break end
-                wait(0.5)
-                waitTime = waitTime + 0.5
-            end
-            
-            if isActive then
-                wait(0.3)
-                if screenGui then
-                    screenGui.Enabled = true
-                end
-                reloadCrosshair()
-            end
-        end
-    end)
-    
-    playerGui.DescendantRemoved:Connect(function(descendant)
-        if descendant == screenGui then
-            if isActive then
-                wait(0.1)
-                reloadCrosshair()
-            end
-        end
-    end)
-end
-
-
-local function setupRespawnDetection()
-    player.CharacterAdded:Connect(function()
-        if isActive then
-            wait(0.5)
-            reloadCrosshair()
-        end
-    end)
-end
-
-
-reloadCrosshair()
-setupCutsceneDetection()
-setupRespawnDetection()
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0.5, 0)
+corner.Parent = dot
