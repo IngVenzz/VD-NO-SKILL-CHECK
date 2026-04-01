@@ -1,0 +1,228 @@
+local function SafeDrawing(type)
+    local success, result = pcall(function()
+        return Drawing.new(type)
+    end)
+    if success then return result end
+    return nil
+end
+
+local function SafeRemove(obj)
+    if obj and obj.Remove then
+        pcall(function() obj:Remove() end)
+    end
+end
+
+if not Drawing or not Drawing.new then
+    local waited = 0
+    while not Drawing and waited < 5 do
+        task.wait(0.1)
+        waited = waited + 0.1
+    end
+    
+    if not Drawing then
+        warn("[Violence] Drawing library not available.")
+        return
+    end
+end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+local Config = {
+    AUTO_Parry = true,
+}
+
+local State = {
+    Unloaded = false,
+    LastParryTime = 0,
+    GameLoaded = false,
+    CutsceneMonitor = nil
+}
+
+local function GetRole()
+    if not LocalPlayer.Team then return "Unknown" end
+    local name = LocalPlayer.Team.Name
+    if name == "Killer" then return "Killer" end
+    if name == "Survivors" then return "Survivor" end
+    return "Lobby"
+end
+
+local function IsKiller(player)
+    return player and player.Team and player.Team.Name == "Killer"
+end
+
+local function GetCharacterRoot()
+    local char = LocalPlayer.Character
+    return char and char:FindFirstChild("HumanoidRootPart")
+end
+
+local function GetDistance(pos)
+    local root = GetCharacterRoot()
+    if not root then return math.huge end
+    return (pos - root.Position).Magnitude
+end
+
+local function IsInCutscene()
+    local camera = workspace.CurrentCamera
+    if not camera then return true end
+    
+    local camType = camera.CameraType
+    if camType == Enum.CameraType.Scriptable then
+        return true
+    end
+    
+    local char = LocalPlayer.Character
+    if not char or not char.Parent then
+        return true
+    end
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum and hum.Health <= 0 then
+        return true
+    end
+    
+    local gui = LocalPlayer:FindFirstChild("PlayerGui")
+    if gui then
+        local loading = gui:FindFirstChild("LoadingScreen")
+        if loading and loading.Enabled then
+            return true
+        end
+        local intro = gui:FindFirstChild("Intro")
+        if intro and intro.Enabled then
+            return true
+        end
+    end
+    
+    return false
+end
+
+local function MonitorCutscene()
+    if State.CutsceneMonitor then
+        State.CutsceneMonitor:Disconnect()
+        State.CutsceneMonitor = nil
+    end
+    
+    State.CutsceneMonitor = RunService.RenderStepped:Connect(function()
+        if not State.GameLoaded then
+            local inCutscene = IsInCutscene()
+            
+            if not inCutscene then
+                local char = LocalPlayer.Character
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if char and hum and root and hum.Health > 0 then
+                    State.GameLoaded = true
+                    Config.AUTO_Parry = true
+                    print("[Auto Load] Game loaded, AUTO_Parry enabled")
+                    
+                    if State.CutsceneMonitor then
+                        State.CutsceneMonitor:Disconnect()
+                        State.CutsceneMonitor = nil
+                    end
+                end
+            end
+        end
+    end)
+end
+
+local function AutoParry()
+    if not Config.AUTO_Parry then return end
+    if GetRole() ~= "Survivor" then return end
+    if tick() - State.LastParryTime < 0.5 then return end
+    
+    local root = GetCharacterRoot()
+    if not root then return end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and IsKiller(player) and player.Character then
+            local killerRoot = player.Character:FindFirstChild("HumanoidRootPart")
+            if killerRoot then
+                local dist = (killerRoot.Position - root.Position).Magnitude
+                if dist <= 13 then
+                    pcall(function()
+                        local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+                        if remotes then
+                            local items = remotes:FindFirstChild("Items")
+                            if items then
+                                local dagger = items:FindFirstChild("Parrying Dagger")
+                                if dagger then
+                                    local parry = dagger:FindFirstChild("parry")
+                                    if parry then
+                                        parry:FireServer()
+                                        State.LastParryTime = tick()
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    break
+                end
+            end
+        end
+    end
+end
+
+local function AutoLoop()
+    while not State.Unloaded do
+        AutoParry()
+        task.wait(0.1)
+    end
+end
+
+local Connections = {}
+
+local Unload = function()
+    State.Unloaded = true
+    Config.AUTO_Parry = false
+    
+    if State.CutsceneMonitor then
+        pcall(function() State.CutsceneMonitor:Disconnect() end)
+        State.CutsceneMonitor = nil
+    end
+    
+    for name, conn in pairs(Connections) do
+        if conn then 
+            pcall(function() conn:Disconnect() end)
+            Connections[name] = nil
+        end
+    end
+end
+
+local function Init()
+    MonitorCutscene()
+    
+    Connections.Render = RunService.RenderStepped:Connect(function()
+        AutoParry()
+    end)
+    
+    task.spawn(AutoLoop)
+    
+    Connections.PlayerAdded = Players.PlayerAdded:Connect(function(player)
+        if player == LocalPlayer then
+            State.GameLoaded = false
+            Config.AUTO_Parry = false
+            MonitorCutscene()
+        end
+    end)
+    
+    Connections.PlayerRemoving = Players.PlayerRemoving:Connect(function(player)
+        if player == LocalPlayer then
+            State.GameLoaded = false
+            Config.AUTO_Parry = false
+            MonitorCutscene()
+        end
+    end)
+    
+    LocalPlayer.CharacterAdded:Connect(function()
+        State.GameLoaded = false
+        Config.AUTO_Parry = false
+        MonitorCutscene()
+    end)
+end
+
+Init()
