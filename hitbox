@@ -1,16 +1,10 @@
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
 local Config = {
     HITBOX_Enabled = true,
-    HITBOX_Size = 15
-}
-
-local State = {
-    InCutscene = false,
-    Running = true
+    HITBOX_Size = 30,
 }
 
 local OriginalHitboxSizes = {}
@@ -28,8 +22,6 @@ local function IsSurvivor(player)
 end
 
 local function UpdateHitboxes()
-    if State.InCutscene then return end
-    
     if GetRole() ~= "Killer" then
         for player, originalSize in pairs(OriginalHitboxSizes) do
             if player and player.Character then
@@ -89,121 +81,8 @@ local function UpdateHitboxes()
     end
 end
 
--- ==================== DETEKSI CUTSCENE ====================
-
-local function SetupCutsceneDetection()
-    local function CheckCutscene()
-        local playerGui = LocalPlayer:FindFirstChild("PlayerGui")
-        if not playerGui then return end
-        
-        local function OnDescendantAdded(descendant)
-            local nameLower = descendant.Name:lower()
-            
-            if nameLower:find("cutscene") or 
-               nameLower:find("cinematic") or 
-               nameLower:find("transition") or
-               nameLower:find("loading") or
-               nameLower:find("black") or
-               nameLower:find("fade") then
-                
-                State.InCutscene = true
-                
-                -- Tunggu cutscene selesai
-                local waitTime = 0
-                while waitTime < 5 do
-                    local stillExists = descendant.Parent ~= nil
-                    if not stillExists then break end
-                    wait(0.5)
-                    waitTime = waitTime + 0.5
-                end
-                
-                State.InCutscene = false
-                
-                -- Reload hitbox setelah cutscene
-                if Config.HITBOX_Enabled then
-                    UpdateHitboxes()
-                end
-            end
-        end
-        
-        playerGui.DescendantAdded:Connect(OnDescendantAdded)
-    end
-    
-    spawn(CheckCutscene)
-end
-
--- ==================== DETEKSI RESPAWN ====================
-
-local function SetupRespawnDetection()
-    LocalPlayer.CharacterAdded:Connect(function()
-        if Config.HITBOX_Enabled then
-            wait(1)
-            UpdateHitboxes()
-        end
-    end)
-end
-
--- ==================== MAINTENANCE LOOP ====================
-
-local function StartMaintenance()
-    spawn(function()
-        while State.Running do
-            wait(2)
-            if not State.InCutscene and Config.HITBOX_Enabled then
-                UpdateHitboxes()
-            end
-        end
-    end)
-end
-
--- ==================== CLEANUP ====================
-
 Players.PlayerRemoving:Connect(function(player)
     OriginalHitboxSizes[player] = nil
 end)
 
--- ==================== AUTO LOOP ====================
-
-local function AutoLoop()
-    while State.Running do
-        if not State.InCutscene then
-            UpdateHitboxes()
-        end
-        task.wait(0.1)
-    end
-end
-
--- ==================== INIT ====================
-
-SetupCutsceneDetection()
-SetupRespawnDetection()
-StartMaintenance()
-task.spawn(AutoLoop)
-
--- ==================== PERINTAH ====================
-
-_G.toggleHitbox = function()
-    Config.HITBOX_Enabled = not Config.HITBOX_Enabled
-    if Config.HITBOX_Enabled then
-        UpdateHitboxes()
-    end
-end
-
-_G.setHitboxSize = function(size)
-    Config.HITBOX_Size = math.clamp(size, 5, 30)
-    if Config.HITBOX_Enabled then
-        UpdateHitboxes()
-    end
-end
-
-_G.getHitboxSize = function()
-    return Config.HITBOX_Size
-end
-
-_G.isHitboxEnabled = function()
-    return Config.HITBOX_Enabled
-end
-
-_G.reloadHitbox = function()
-    UpdateHitboxes()
-end
+RunService.Heartbeat:Connect(UpdateHitboxes)
