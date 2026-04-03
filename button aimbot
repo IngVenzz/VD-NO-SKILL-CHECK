@@ -49,7 +49,7 @@ local function lockOnTarget()
     if currentTarget and currentTarget.Character then
         local targetPart = currentTarget.Character:FindFirstChild("HumanoidRootPart")
         if targetPart then
-            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), 0.8)
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, targetPart.Position), 0.9)
         else
             currentTarget = nil
         end
@@ -80,7 +80,7 @@ local function createGUI()
     -- Tombol bulat
     local button = Instance.new("ImageButton")
     button.Size = UDim2.new(0, 50, 0, 50)
-    button.Position = UDim2.new(1, -230, 1, -480)
+    button.Position = UDim2.new(1, -210, 1, -420)
     button.AnchorPoint = Vector2.new(1, 1)
     button.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
     button.BackgroundTransparency = 0.15
@@ -88,7 +88,7 @@ local function createGUI()
     button.ImageColor3 = Color3.fromRGB(255, 255, 255)
     button.ImageTransparency = 0.2
     button.Parent = ScreenGui
-    button.Draggable = true  -- Bisa di-drag!
+    button.Draggable = false  -- Bisa di-drag!
 
     local corner = Instance.new("UICorner", button)
     corner.CornerRadius = UDim.new(1, 0)
