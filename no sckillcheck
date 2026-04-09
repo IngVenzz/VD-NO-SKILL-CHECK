@@ -5,19 +5,7 @@ local player = playersService.LocalPlayer
 local remotesFolder = replicatedStorage:FindFirstChild("Remotes")
 if not remotesFolder then return end
 
-local function GetRole()
-    if not player.Team then return "Unknown" end
-    local name = player.Team.Name
-    if name == "Killer" then return "Killer" end
-    if name == "Survivors" then return "Survivor" end
-    return "Lobby"
-end
-
-local function IsScriptActive()
-    local role = GetRole()
-    return role == "Survivor"
-end
-
+-- Cache storage
 local targetEvents = {}
 local blockedRemotes = {}
 
@@ -42,7 +30,6 @@ local function cacheTargetEvents()
 end
 
 local function annihilateSkillCheckEvents()
-    if not IsScriptActive() then return end
     for event, _ in pairs(targetEvents) do
         if event and event.Parent then
             pcall(function() event:Destroy() end)
@@ -51,7 +38,6 @@ local function annihilateSkillCheckEvents()
 end
 
 local function shutdownSpecificRemotes()
-    if not IsScriptActive() then return end
     local remoteNames = {"SkillCheck", "SkillCheckEvent"}
     
     for _, obj in ipairs(replicatedStorage:GetDescendants()) do
@@ -90,7 +76,6 @@ local function shutdownSpecificRemotes()
 end
 
 local function removeSkillCheckUI()
-    if not IsScriptActive() then return end
     local playerGui = player:FindFirstChild("PlayerGui")
     if not playerGui then return end
     
@@ -110,7 +95,6 @@ local function removeSkillCheckUI()
 end
 
 local function autoCompleteWhenNeeded()
-    if not IsScriptActive() then return end
     for _, obj in ipairs(replicatedStorage:GetDescendants()) do
         if obj:IsA("RemoteEvent") and obj.Name:find("SkillCheck") then
             obj.OnClientEvent:Connect(function(...)
@@ -129,7 +113,7 @@ local function watchForReload()
     if playerGui then
         playerGui.DescendantAdded:Connect(function(desc)
             wait(0.5)
-            if IsScriptActive() then
+            if desc:IsA("Frame") or desc:IsA("ScreenGui") or desc:IsA("ImageLabel") then
                 removeSkillCheckUI()
                 cacheTargetEvents()
                 annihilateSkillCheckEvents()
@@ -139,44 +123,35 @@ local function watchForReload()
     
     replicatedStorage.ChildAdded:Connect(function()
         wait(0.3)
-        if IsScriptActive() then
-            shutdownSpecificRemotes()
-            autoCompleteWhenNeeded()
-        end
+        shutdownSpecificRemotes()
+        autoCompleteWhenNeeded()
     end)
     
     replicatedStorage.DescendantAdded:Connect(function(desc)
         if desc:IsA("RemoteEvent") or desc:IsA("RemoteFunction") then
             if desc.Name:find("SkillCheck") or desc.Name:find("SkillCheckEvent") then
                 wait(0.2)
-                if IsScriptActive() then
-                    shutdownSpecificRemotes()
-                    autoCompleteWhenNeeded()
-                end
+                shutdownSpecificRemotes()
+                autoCompleteWhenNeeded()
             end
         end
     end)
 end
 
-if IsScriptActive() then
-    cacheTargetEvents()
-    annihilateSkillCheckEvents()
-    shutdownSpecificRemotes()
-    removeSkillCheckUI()
-    autoCompleteWhenNeeded()
-end
+cacheTargetEvents()
+annihilateSkillCheckEvents()
+shutdownSpecificRemotes()
+removeSkillCheckUI()
+autoCompleteWhenNeeded()
 watchForReload()
 
 _G.killAllSkillChecks = function()
-    if IsScriptActive() then
-        cacheTargetEvents()
-        annihilateSkillCheckEvents()
-        removeSkillCheckUI()
-    end
+    cacheTargetEvents()
+    annihilateSkillCheckEvents()
+    removeSkillCheckUI()
 end
 
 _G.bypassGenerator = function()
-    if not IsScriptActive() then return end
     local generatorFolder = remotesFolder:FindFirstChild("Generator")
     if generatorFolder then
         local skillEvent = generatorFolder:FindFirstChild("SkillCheckEvent")
@@ -190,7 +165,6 @@ _G.bypassGenerator = function()
 end
 
 _G.bypassHealing = function()
-    if not IsScriptActive() then return end
     local healingFolder = remotesFolder:FindFirstChild("Healing")
     if healingFolder then
         local skillEvent = healingFolder:FindFirstChild("Healing")
